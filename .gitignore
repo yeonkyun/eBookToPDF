@@ -1,0 +1,47 @@
+# 파이썬 관련
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 가상환경
+venv/
+.env
+.venv
+ENV/
+
+# IDE 설정
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 프로젝트 파일
+captures/  # 캡처 이미지 저장 폴더
+img/       # 임시 이미지 저장 폴더
+*.pdf      # 생성된 PDF 파일
+*.png      # 캡처된 이미지
+*.jpg
+*.jpeg
+
+# 로그 파일
+*.log
+logs/
