@@ -535,7 +535,7 @@ class MainWindow(QMainWindow):
         images = []
         for i in range(self.page_spin.value()):
             # PNG 파일 읽기
-            image_path = os.path.join("captures", f"page_{i+1}.png")
+            image_path = os.path.join("img", f"page_{i+1}.png")
             if os.path.exists(image_path):
                 images.append(Image.open(image_path))
         
