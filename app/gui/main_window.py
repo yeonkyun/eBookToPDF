@@ -15,6 +15,7 @@ import pyautogui
 from ..core import CaptureThread, PDFConverter
 from ..utils import MonitorManager
 from .components import UISection, StyleManager
+from .coordinate_selector import CoordinateSelector
 
 
 class MainWindow(QMainWindow):
@@ -65,6 +66,7 @@ class MainWindow(QMainWindow):
     def _setup_save_section(self, main_layout):
         """저장 설정 섹션 설정"""
         save_section, save_layout = UISection.create_section("저장 설정")
+        save_layout.setSpacing(5)  # 저장 섹션 내부 간격 줄이기
         
         # 저장 경로
         path_layout = QHBoxLayout()
@@ -142,8 +144,43 @@ class MainWindow(QMainWindow):
         
         # 좌표 설정 버튼들
         btn_layout = QHBoxLayout()
-        btn_top_left = QPushButton('왼쪽 상단 좌표 설정')
-        btn_bottom_right = QPushButton('오른쪽 하단 좌표 설정')
+        coord_select_btn = QPushButton('영역 선택 (드래그)')
+        coord_select_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #0071e3;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #005bb5;
+            }
+        """)
+        coord_select_btn.clicked.connect(self.start_coordinate_selection)
+        btn_layout.addWidget(coord_select_btn)
+        
+        # 기존 개별 버튼들도 유지 (호환성)
+        btn_top_left = QPushButton('좌상단')
+        btn_bottom_right = QPushButton('우하단')
+        btn_top_left.setStyleSheet("""
+            QPushButton {
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+        """)
+        btn_bottom_right.setStyleSheet("""
+            QPushButton {
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+        """)
+        btn_top_left.setMaximumWidth(80)
+        btn_bottom_right.setMaximumWidth(80)
         btn_top_left.clicked.connect(lambda: self.get_coords('top_left'))
         btn_bottom_right.clicked.connect(lambda: self.get_coords('bottom_right'))
         btn_layout.addWidget(btn_top_left)
@@ -203,8 +240,55 @@ class MainWindow(QMainWindow):
         if index >= 0 and index < len(self.monitors):
             self.monitor_offset = MonitorManager.get_monitor_offset(index)
                 
+    def start_coordinate_selection(self):
+        """새로운 드래그 기반 좌표 선택 시작"""
+        # 현재 선택된 모니터 인덱스 가져오기
+        selected_monitor_index = self.monitor_combo.currentIndex()
+        print(f"Starting coordinate selection on monitor {selected_monitor_index}")
+        
+        # 선택된 모니터 정보 전달
+        self.coordinate_selector = CoordinateSelector(self.monitors, selected_monitor_index)
+        self.coordinate_selector.coordinates_selected.connect(self.on_coordinates_selected)
+        
+        # 일반 창으로 표시 (showFullScreen 대신)
+        self.coordinate_selector.show()
+        
+        # 포커스 확실히 가져오기
+        self.coordinate_selector.activateWindow()
+        self.coordinate_selector.raise_()
+        self.coordinate_selector.setFocus()
+        
+        # 메인 윈도우 임시 숨김
+        self.hide()
+    
+    def on_coordinates_selected(self, x1, y1, x2, y2):
+        """좌표 선택 완료 시 호출 (모니터 상대 좌표를 받음)"""
+        # 메인 윈도우 다시 표시 (취소든 확정이든 항상)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        
+        # ESC 취소 처리
+        if x1 == -1 and y1 == -1 and x2 == -1 and y2 == -1:
+            print("Coordinate selection cancelled")
+            return
+            
+        print(f"Received coordinates: ({x1}, {y1}) to ({x2}, {y2})")
+        
+        # 이미 모니터 상대 좌표이므로 바로 사용
+        self.coords['x1'], self.coords['y1'] = x1, y1
+        self.coords['x2'], self.coords['y2'] = x2, y2
+        
+        # UI 업데이트
+        self.coord_inputs['x1'].setText(str(x1))
+        self.coord_inputs['y1'].setText(str(y1))
+        self.coord_inputs['x2'].setText(str(x2))
+        self.coord_inputs['y2'].setText(str(y2))
+        
+        self.update_coord_label()
+
     def get_coords(self, position):
-        """마우스로 캡처 영역 좌표 지정"""
+        """기존 방식 마우스로 캡처 영역 좌표 지정 (호환성 유지)"""
         self.hide()
         time.sleep(3)
         x, y = pyautogui.position()

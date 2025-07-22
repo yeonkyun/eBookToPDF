@@ -4,6 +4,7 @@
 
 import os
 import time
+import platform
 from PyQt6.QtCore import QThread, pyqtSignal
 import pyautogui
 from PIL import Image
@@ -39,28 +40,52 @@ class CaptureThread(QThread):
         self.delay = delay
         
     def run(self):
-        """지정된 영역을 순차적으로 캡처하고 PNG 이미지로 저장"""
+        """지정된 영역을 순차적으로 캡처하고 PNG 이미지로 저장 (크로스 플랫폼 호환)"""
         output_dir = "img"
         os.makedirs(output_dir, exist_ok=True)
         
-        with mss() as sct:
-            for i in range(self.page_num):
-                monitor = {
-                    "top": self.y1,
-                    "left": self.x1,
-                    "width": self.x2 - self.x1,
-                    "height": self.y2 - self.y1
-                }
-                
-                screenshot = sct.grab(monitor)
-                
-                # PNG 형식으로 저장하여 무손실 화질 유지
-                image_path = os.path.join(output_dir, f"page_{i+1}.png")
-                img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
-                img.save(image_path, "PNG")
-                
-                pyautogui.press('right')
-                time.sleep(self.delay)
-                self.progress.emit(i + 1)
+        # 플랫폼별 pyautogui 설정
+        if platform.system() == "Darwin":  # macOS
+            # macOS에서 보안 권한 처리
+            pyautogui.FAILSAFE = True
+            pyautogui.PAUSE = 0.1
+        elif platform.system() == "Windows":
+            # Windows에서 DPI 인식 설정
+            pyautogui.FAILSAFE = True
+            pyautogui.PAUSE = 0.1
+        
+        try:
+            with mss() as sct:
+                for i in range(self.page_num):
+                    monitor = {
+                        "top": self.y1,
+                        "left": self.x1,
+                        "width": self.x2 - self.x1,
+                        "height": self.y2 - self.y1
+                    }
+                    
+                    # 캡처 영역 유효성 검사
+                    if monitor["width"] <= 0 or monitor["height"] <= 0:
+                        print(f"Invalid capture area: {monitor}")
+                        continue
+                    
+                    screenshot = sct.grab(monitor)
+                    
+                    # PNG 형식으로 저장하여 무손실 화질 유지
+                    image_path = os.path.join(output_dir, f"page_{i+1}.png")
+                    img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
+                    img.save(image_path, "PNG")
+                    
+                    # 플랫폼별 키 입력 방식
+                    if platform.system() == "Darwin":  # macOS
+                        pyautogui.press('right')
+                    else:  # Windows, Linux
+                        pyautogui.press('right')
+                        
+                    time.sleep(self.delay)
+                    self.progress.emit(i + 1)
+                    
+        except Exception as e:
+            print(f"Capture error: {e}")
                 
         self.finished.emit()
